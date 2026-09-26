@@ -1,0 +1,615 @@
+Docker & Portainer — Debian 13 ARM64
+
+Ce projet documente l'installation et l'administration de Docker Engine et Portainer sur un système Debian 13 (Trixie) ARM64.
+
+L'objectif est de disposer d'une base Docker administrable entièrement depuis Linux et d'une interface Web avec Portainer.
+
+1. Environnement
+
+Configuration utilisée :
+
+Système       : Debian GNU/Linux 13 (Trixie)
+Architecture  : ARM64
+Machine       : Raspberry Pi Zero 2 W
+Docker        : Docker Engine
+Interface     : Portainer CE
+
+
+Vérifier la version de Debian :
+
+cat /etc/os-release
+
+
+Vérifier l'architecture :
+
+dpkg --print-architecture
+
+
+Résultat attendu :
+
+arm64
+
+2. Mise à jour de Debian
+
+Avant toute installation, mettre le système à jour :
+
+sudo apt update
+
+
+Puis :
+
+sudo apt full-upgrade -y
+
+
+Installer les outils nécessaires :
+
+sudo apt install -y ca-certificates curl
+
+
+Redémarrer si nécessaire :
+
+sudo reboot
+
+3. Supprimer une ancienne installation Docker
+
+Si une ancienne installation Docker existe, supprimer les paquets Debian éventuellement présents :
+
+sudo apt remove -y docker docker.io containerd runc
+
+
+Cette commande peut afficher :
+
+Unable to locate package ...
+
+
+si certains paquets ne sont pas installés.
+
+Ce n'est pas bloquant.
+
+4. Ajouter le dépôt officiel Docker
+
+Docker fournit son propre dépôt officiel pour Debian.
+
+Créer le répertoire destiné aux clés :
+
+sudo install -m 0755 -d /etc/apt/keyrings
+
+
+Télécharger la clé GPG Docker :
+
+sudo curl -fsSL https://download.docker.com/linux/debian/gpg \
+  -o /etc/apt/keyrings/docker.asc
+
+
+Définir les permissions :
+
+sudo chmod a+r /etc/apt/keyrings/docker.asc
+
+
+Créer le dépôt Docker pour Debian 13 Trixie :
+
+echo \
+  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian \
+  trixie stable" | \
+  sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+
+Mettre à jour les dépôts :
+
+sudo apt update
+
+
+Vérifier que Docker est disponible :
+
+apt-cache policy docker-ce
+
+
+Une version doit apparaître à la ligne :
+
+Candidate:
+
+5. Installer Docker Engine
+
+Installer Docker Engine ainsi que les composants complémentaires :
+
+sudo apt install -y \
+  docker-ce \
+  docker-ce-cli \
+  containerd.io \
+  docker-buildx-plugin \
+  docker-compose-plugin
+
+
+Les composants installés sont notamment :
+
+docker-ce — moteur Docker
+
+docker-ce-cli — interface en ligne de commande Docker
+
+containerd.io — moteur de gestion des conteneurs
+
+docker-buildx-plugin — construction d'images Docker
+
+docker-compose-plugin — gestion des stacks avec Docker Compose
+
+6. Activer Docker au démarrage
+
+Activer Docker :
+
+sudo systemctl enable docker
+
+
+Démarrer Docker :
+
+sudo systemctl start docker
+
+
+Vérifier son état :
+
+sudo systemctl status docker
+
+
+Le résultat doit indiquer :
+
+Active: active (running)
+
+
+Quitter l'écran de statut avec :
+
+q
+
+7. Tester Docker
+
+Vérifier la version :
+
+sudo docker version
+
+
+Tester le moteur Docker :
+
+sudo docker run hello-world
+
+
+Si le message de confirmation Docker apparaît, le moteur fonctionne correctement.
+
+Vérifier Docker Compose :
+
+sudo docker compose version
+
+8. Administrer Docker sans sudo
+
+Par défaut, les commandes Docker nécessitent les privilèges administrateur.
+
+Ajouter l'utilisateur actuel au groupe docker :
+
+sudo usermod -aG docker $USER
+
+
+Il faut ensuite fermer la session SSH :
+
+exit
+
+
+Puis se reconnecter.
+
+Tester :
+
+docker ps
+
+
+Si cette commande fonctionne sans sudo, la configuration est terminée.
+
+Attention
+
+L'appartenance au groupe docker donne des privilèges très importants sur le système.
+
+Il faut donc considérer le groupe docker comme un accès administrateur.
+
+9. Commandes Docker de base
+Voir les conteneurs actifs
+docker ps
+
+Voir tous les conteneurs
+docker ps -a
+
+Voir les images
+docker images
+
+Voir les volumes
+docker volume ls
+
+Voir les réseaux
+docker network ls
+
+Télécharger une image
+docker pull IMAGE
+
+Supprimer une image
+docker image rm IMAGE
+
+Afficher les logs
+docker logs NOM_DU_CONTENEUR
+
+Suivre les logs en temps réel
+docker logs -f NOM_DU_CONTENEUR
+
+Redémarrer un conteneur
+docker restart NOM_DU_CONTENEUR
+
+Arrêter un conteneur
+docker stop NOM_DU_CONTENEUR
+
+Démarrer un conteneur
+docker start NOM_DU_CONTENEUR
+
+10. Installer Portainer
+
+Portainer permet d'administrer Docker depuis une interface Web.
+
+Créer un volume permanent pour Portainer :
+
+docker volume create portainer_data
+
+
+Vérifier :
+
+docker volume ls
+
+
+Le volume suivant doit apparaître :
+
+portainer_data
+
+11. Télécharger Portainer
+
+Télécharger l'image Portainer Community Edition :
+
+docker pull portainer/portainer-ce:latest
+
+
+Vérifier l'image :
+
+docker images
+
+12. Créer le conteneur Portainer
+
+Créer Portainer :
+
+docker run -d \
+  -p 8000:8000 \
+  -p 9443:9443 \
+  --name portainer \
+  --restart=always \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  -v portainer_data:/data \
+  portainer/portainer-ce:latest
+
+Explication
+-p 8000:8000
+
+
+Expose le port utilisé par Portainer Edge Agent.
+
+-p 9443:9443
+
+
+Expose l'interface Web HTTPS de Portainer.
+
+--name portainer
+
+
+Donne le nom portainer au conteneur.
+
+--restart=always
+
+
+Demande à Docker de redémarrer automatiquement Portainer.
+
+-v /var/run/docker.sock:/var/run/docker.sock
+
+
+Permet à Portainer de communiquer avec le moteur Docker local.
+
+-v portainer_data:/data
+
+
+Stocke les données de Portainer dans un volume Docker persistant.
+
+13. Vérifier Portainer
+
+Afficher les conteneurs :
+
+docker ps
+
+
+Portainer doit apparaître avec un statut similaire à :
+
+Up ...
+
+
+Afficher les logs :
+
+docker logs portainer
+
+
+Suivre les logs :
+
+docker logs -f portainer
+
+
+Quitter les logs :
+
+Ctrl + C
+
+14. Récupérer le Setup Token Portainer
+
+Lors de la première installation, Portainer peut demander un Setup Token.
+
+Afficher le token :
+
+docker logs portainer 2>&1 | grep setup_token
+
+
+Le résultat contient le token nécessaire à l'initialisation de l'interface.
+
+Le token est sensible.
+
+Ne jamais le placer dans un dépôt Git public.
+
+15. Trouver l'adresse IP du serveur Debian
+
+Utiliser :
+
+hostname -I
+
+
+Exemple :
+
+192.168.1.50
+
+
+Pour connaître plus précisément les interfaces réseau :
+
+ip addr
+
+16. Accéder à Portainer
+
+Depuis un ordinateur connecté au même réseau :
+
+https://192.168.1.50:9443
+
+
+Remplacer l'adresse par celle du serveur Debian.
+
+Portainer utilise HTTPS.
+
+Lors de la première connexion, le navigateur peut afficher un avertissement concernant le certificat.
+
+17. Première connexion à Portainer
+
+Sur l'interface Web :
+
+Entrer le Setup Token récupéré dans les logs.
+
+Créer le compte administrateur.
+
+Se connecter à Portainer.
+
+Sélectionner l'environnement Docker local.
+
+L'environnement local permet à Portainer d'administrer le moteur Docker installé sur le serveur.
+
+18. Vérifier que Portainer redémarre automatiquement
+
+Redémarrer Debian :
+
+sudo reboot
+
+
+Attendre le redémarrage du serveur.
+
+Se reconnecter en SSH :
+
+ssh utilisateur@IP_DU_SERVEUR
+
+
+Vérifier Docker :
+
+docker ps
+
+
+Portainer doit être présent.
+
+Tester également :
+
+docker inspect portainer --format '{{.HostConfig.RestartPolicy.Name}}'
+
+
+Résultat attendu :
+
+always
+
+19. Administration de Portainer depuis Linux
+
+Même si Portainer fournit une interface Web, Docker reste administrable directement depuis le terminal.
+
+Voir Portainer :
+
+docker ps --filter name=portainer
+
+
+Voir ses logs :
+
+docker logs portainer
+
+
+Redémarrer Portainer :
+
+docker restart portainer
+
+
+Arrêter Portainer :
+
+docker stop portainer
+
+
+Démarrer Portainer :
+
+docker start portainer
+
+
+Inspecter Portainer :
+
+docker inspect portainer
+
+
+Afficher les informations du volume :
+
+docker volume inspect portainer_data
+
+20. Administration du service Docker
+
+Vérifier Docker :
+
+sudo systemctl status docker
+
+
+Démarrer Docker :
+
+sudo systemctl start docker
+
+
+Arrêter Docker :
+
+sudo systemctl stop docker
+
+
+Redémarrer Docker :
+
+sudo systemctl restart docker
+
+
+Activer Docker au démarrage :
+
+sudo systemctl enable docker
+
+
+Vérifier si Docker est activé :
+
+systemctl is-enabled docker
+
+
+Résultat attendu :
+
+enabled
+
+21. Docker Compose
+
+Docker Compose est installé avec le plugin Docker.
+
+Vérifier :
+
+docker compose version
+
+
+Une stack peut ensuite être définie avec un fichier :
+
+compose.yml
+
+
+Exemple de structure :
+
+services/
+├── service-1/
+│   └── compose.yml
+├── service-2/
+│   └── compose.yml
+└── service-3/
+    └── compose.yml
+
+
+Démarrer une stack :
+
+docker compose up -d
+
+
+Arrêter une stack :
+
+docker compose down
+
+
+Voir les services :
+
+docker compose ps
+
+
+Voir les logs :
+
+docker compose logs
+
+
+Suivre les logs :
+
+docker compose logs -f
+
+22. Architecture finale
+
+Après cette installation, l'architecture est :
+
+┌──────────────────────────────────┐
+│ Raspberry Pi Zero 2 W            │
+│                                  │
+│ Debian 13 Trixie                 │
+│ ARM64                            │
+│                                  │
+│ ┌──────────────────────────────┐ │
+│ │ Docker Engine                │ │
+│ │                              │ │
+│ │ ┌──────────────────────────┐ │ │
+│ │ │ Portainer CE             │ │ │
+│ │ │                          │ │ │
+│ │ │ HTTPS : 9443             │ │ │
+│ │ └──────────────────────────┘ │ │
+│ │                              │ │
+│ │ futurs conteneurs            │ │
+│ │                              │ │
+│ └──────────────────────────────┘ │
+│                                  │
+└──────────────────────────────────┘
+
+23. Résumé des composants
+Composant	Fonction
+Debian 13	Système d'exploitation
+Docker Engine	Exécution des conteneurs
+containerd	Runtime des conteneurs
+Buildx	Construction des images
+Docker Compose	Gestion des stacks
+Portainer CE	Administration Web de Docker
+portainer_data	Données persistantes de Portainer
+24. Vérification finale
+
+Les commandes suivantes doivent fonctionner :
+
+cat /etc/os-release
+
+dpkg --print-architecture
+
+docker version
+
+docker compose version
+
+docker ps
+
+docker images
+
+docker volume ls
+
+sudo systemctl status docker
+
+
+Et Portainer doit être accessible depuis :
+
+https://IP_DU_SERVEUR:9443
+
+
+Le serveur dispose alors d'une installation Docker complète et d'une interface Web Portainer permettant d'administrer les conteneurs, images, volumes, réseaux et stacks Docker.
